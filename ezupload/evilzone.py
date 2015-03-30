@@ -4,6 +4,15 @@ from io import open
 import requests
 import sys, os
 import re
+from getpass import getpass
+
+try:
+	# Python 2
+        prompt = raw_input
+except NameError:
+        # Python 3
+        prompt = input
+
 
 def get_file_size(filename):
 	if os.path.exists(filename):
@@ -52,10 +61,23 @@ class EZuploader():
 		self.filename = filename
 		self.host = 'upload.evilzone.org'
 		self.url = 'http://{0}'.format(self.host)
+		self.session = None
 		
 		self.agent = 'Mozilla/5.0 (X11; Linux i686; rv:25.0) Gecko/20100101 Firefox/25.0'
 		self.type = 'multipart/form-data'
 		self.referer = 'http://upload.evilzone.org/index.php?page=fileupload'
+		
+	def login(self):
+		login_url = 'https://evilzone.org/login'
+		username = prompt('Username for Evilzone.org: ')
+		password = getpass('Password for Evilzone.org: ')
+		print (username, password)
+		self.session = requests.session()
+		r = self.session.post(login_url, params={'username':username, 'password':password})
+		if r.status_code == requests.codes.ok:
+			return self.session
+		else:
+			return None
 		
 		
 	def fileupload(self, filename=None):
@@ -66,8 +88,13 @@ class EZuploader():
 		self.size = get_file_size(filepath)
 		self.headers = {'content-type': self.type, 'User-Agent': self.agent,
 					'Referer': self.referer, 'Content-Length': self.size}	
-
-		r = requests.post(url=file_url, headers=self.headers, data=read_file(filepath))
+		
+		if self.session is not None:
+			print('session in set')
+			r = self.session.post(url=file_url, headers=self.headers, data=read_file(filepath))
+			print ('Done')
+		else:
+			r = requests.post(url=file_url, headers=self.headers, data=read_file(filepath))
 		if 'Error' not in r.text:
 			return 'http://upload.evilzone.org?page=download&file='+r.text
 		else:
@@ -80,7 +107,13 @@ class EZuploader():
 		self.size = get_image_size(imagepath)
 		self.headers = {'content-type': self.type, 'User-Agent': self.agent, 'Referer': self.referer, 'Content-Length': self.size}	
 		if is_supported_image(imagepath):
-			r = requests.post(url=image_url, headers=self.headers, data=read_file(imagepath))
+			if self.session is not None:
+				print('session in set')
+				r = self.session.post(url=image_url, headers=self.headers, data=read_file(imagepath))
+				print ('Done')
+			else:
+				print('session not set')
+				r = requests.post(url=image_url, headers=self.headers, data=read_file(imagepath))
 			if 'Error' not in r.text:
 				return self.url + '/' + get_link(r.text).strip('"')
 			else:
