@@ -1,0 +1,12 @@
+import sys
+
+import fileup
+
+def main(argc, argv):
+	print argv[1]
+	ezup = fileup.EZuploader()
+	url = ezup.imageupload(argv[1])
+	print url
+
+if __name__ == "__main__":
+    	sys.exit(main(len(sys.argv), sys.argv))
