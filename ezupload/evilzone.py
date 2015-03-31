@@ -1,7 +1,6 @@
-from __future__ import print_function
 from io import open
 
-import requests
+import requests, mechanize, cookielib
 import sys, os
 import re
 from getpass import getpass
@@ -12,7 +11,7 @@ try:
 except NameError:
         # Python 3
         prompt = input
-
+COOKIEFILE = (os.environ['HOME'] + '/.EZuploader/cookies.lwp') #TODO: implement cookies local storage, see if it works
 
 def get_file_size(filename):
 	if os.path.exists(filename):
@@ -59,41 +58,61 @@ def get_link(html):
 class EZuploader():
 	def __init__(self, filename=None):
 		self.filename = filename
+		self.forum = 'https://evilzone.org/index.php'#
 		self.host = 'upload.evilzone.org'
 		self.url = 'http://{0}'.format(self.host)
-		self.session = None
+		self.cj = None #load_cookies()
 		
 		self.agent = 'Mozilla/5.0 (X11; Linux i686; rv:25.0) Gecko/20100101 Firefox/25.0'
 		self.type = 'multipart/form-data'
 		self.referer = 'http://upload.evilzone.org/index.php?page=fileupload'
-		
+		self.headers = {'content-type': self.type, 'User-Agent': self.agent, 'Referer': self.referer}
+	
+	
+
 	def login(self):
-		login_url = 'https://evilzone.org/login'
-		username = prompt('Username for Evilzone.org: ')
-		password = getpass('Password for Evilzone.org: ')
-		print (username, password)
-		self.session = requests.session()
-		r = self.session.post(login_url, params={'username':username, 'password':password})
-		if r.status_code == requests.codes.ok:
-			return self.session
-		else:
-			return None
-		
+		if self.cj is None:
+			login_url = 'https://evilzone.org/login'
+			username = prompt('Username for Evilzone.org: ')
+			password = getpass('Password for Evilzone.org: ')
+			print username, password
+
+			agent = mechanize.Browser()
+			agent.set_handle_robots(False)
+			self.cj = cookielib.LWPCookieJar()
+			
+			agent.set_cookiejar(self.cj)
+			agent.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(), max_time=1)
+			agent.open(login_url)
+	
+			#login
+			agent.select_form(name='frmLogin')
+			agent.form['user'] = username
+			agent.form['passwrd'] = password
+			response = agent.submit()
+	
+			if response.code == requests.codes.ok:
+				print response.code
+				self.cj.save
+				print self.cj
+				return None
 		
 	def fileupload(self, filename=None):
 		path = '/index.php?page=fileupload&filename={0}'
 		filepath = filename or self.filename
 		_filename = os.path.basename(filepath)
 		file_url = self.url + path.format(_filename)
-		self.size = get_file_size(filepath)
-		self.headers = {'content-type': self.type, 'User-Agent': self.agent,
-					'Referer': self.referer, 'Content-Length': self.size}	
+		size = get_file_size(filepath)
+		self.headers['Content-Length'] = size
 		
-		if self.session is not None:
-			print('session in set')
-			r = self.session.post(url=file_url, headers=self.headers, data=read_file(filepath))
-			print ('Done')
+		if self.cj is not None:
+			session = requests.session()
+			#r = session.get(url='https://evilzone.org/rauploadmod.php',
+			#		 headers=self.headers, data=read_file(filepath), cookies=self.cj)
+			r = session.post(url=file_url, headers=self.headers, data=read_file(filepath), cookies=self.cj)
+			
 		else:
+			print 'Posting anonymously'
 			r = requests.post(url=file_url, headers=self.headers, data=read_file(filepath))
 		if 'Error' not in r.text:
 			return 'http://upload.evilzone.org?page=download&file='+r.text
@@ -104,15 +123,13 @@ class EZuploader():
 		path = '/index.php?page=imageupload&upload=true'
 		imagepath = filename or self.filename
 		image_url = self.url + path
-		self.size = get_image_size(imagepath)
-		self.headers = {'content-type': self.type, 'User-Agent': self.agent, 'Referer': self.referer, 'Content-Length': self.size}	
+		size = get_image_size(imagepath)
+		self.headers['Content-Length'] = size
 		if is_supported_image(imagepath):
-			if self.session is not None:
-				print('session in set')
-				r = self.session.post(url=image_url, headers=self.headers, data=read_file(imagepath))
-				print ('Done')
+			if self.cj is not None:
+				print self.cj
+				r = requests.post(url=image_url, headers=self.headers, data=read_file(imagepath), cookies=self.cj)
 			else:
-				print('session not set')
 				r = requests.post(url=image_url, headers=self.headers, data=read_file(imagepath))
 			if 'Error' not in r.text:
 				return self.url + '/' + get_link(r.text).strip('"')
@@ -120,3 +137,7 @@ class EZuploader():
 				return None
 		else:
 			raise TypeError("Image format not supported.")
+
+#	def delete():
+#		delete= 'http://upload.evilzone.org/index.php?page=yourimages&delete=S7YDymME33ZidFLEagaQ6YfC7KMCDEUREFMg7piNjlGHXpOFrz'
+#		delete='http://upload.evilzone.org/index.php?page=yourfiles&delete=8wPtrctGEoETO7lIbX38Y3QqyAYXQMqchWxUpBSYLND5FT9RO1'
