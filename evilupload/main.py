@@ -1,12 +1,12 @@
 import sys
 
-import evilzone
+import evilupload
 
 def main(argc, argv):
 	
-	ezup = evilzone.EZuploader()
-	ezup.login()
-	url = ezup.fileupload(argv[1])
+	ezup = evilupload.EZuploader()
+	print ezup.login()
+	url = ezup.imageupload(argv[1])
 	print url
 
 if __name__ == "__main__":

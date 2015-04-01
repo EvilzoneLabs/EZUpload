@@ -11,7 +11,6 @@ try:
 except NameError:
         # Python 3
         prompt = input
-COOKIEFILE = (os.environ['HOME'] + '/.EZuploader/cookies.lwp') #TODO: implement cookies local storage, see if it works
 
 def get_file_size(filename):
 	if os.path.exists(filename):
@@ -55,13 +54,24 @@ def get_link(html):
 	link = re.findall(r_ul, html)
 	return link[0][0]
 
+def check_cookie(cj, name):
+	for cookie in cj:
+		if cookie.name == name:
+			return True
+	return False
+
 class EZuploader():
+	
 	def __init__(self, filename=None):
 		self.filename = filename
 		self.forum = 'https://evilzone.org/index.php'#
 		self.host = 'upload.evilzone.org'
 		self.url = 'http://{0}'.format(self.host)
-		self.cj = None #load_cookies()
+		self.cj = None
+		self.COOKIEDIR = os.environ['HOME']+'/.EZJar'
+		self.COOKIEFILE = self.COOKIEDIR+'/cookies.lwp'
+		print self.COOKIEFILE
+		self.loggedin=False
 		
 		self.agent = 'Mozilla/5.0 (X11; Linux i686; rv:25.0) Gecko/20100101 Firefox/25.0'
 		self.type = 'multipart/form-data'
@@ -71,15 +81,23 @@ class EZuploader():
 	
 
 	def login(self):
-		if self.cj is None:
+		if os.path.isfile(self.COOKIEFILE):
+			try:
+				self.cj = cookielib.LWPCookieJar(self.COOKIEFILE)
+				self.cj.load(ignore_discard=True)
+				if check_cookie(self.cj, 'DarkEvilCookie'):
+					self.loggedin=True
+					return self.cj
+			except:
+				pass
+		if self.cj is None or not check_cookie(self.cj, 'DarkEvilCookie'):#wonder if this logic is right!
 			login_url = 'https://evilzone.org/login'
 			username = prompt('Username for Evilzone.org: ')
 			password = getpass('Password for Evilzone.org: ')
-			print username, password
 
 			agent = mechanize.Browser()
 			agent.set_handle_robots(False)
-			self.cj = cookielib.LWPCookieJar()
+			self.cj = cookielib.LWPCookieJar(self.COOKIEFILE)
 			
 			agent.set_cookiejar(self.cj)
 			agent.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(), max_time=1)
@@ -92,10 +110,15 @@ class EZuploader():
 			response = agent.submit()
 	
 			if response.code == requests.codes.ok:
-				print response.code
-				self.cj.save
-				print self.cj
-				return None
+				self.loggedin=True
+				try:
+					self.cj.save(ignore_discard=True)
+				except IOError:#prolly the cookiefile doesn't exist
+					if not os.path.exists(self.COOKIEFILE):
+    						os.makedirs(self.COOKIEDIR)
+				self.cj.save(ignore_discard=True)
+				return self.cj
+		return None
 		
 	def fileupload(self, filename=None):
 		path = '/index.php?page=fileupload&filename={0}'
@@ -105,15 +128,15 @@ class EZuploader():
 		size = get_file_size(filepath)
 		self.headers['Content-Length'] = size
 		
-		if self.cj is not None:
+		if self.cj is not None and self.loggedin:
 			session = requests.session()
-			#r = session.get(url='https://evilzone.org/rauploadmod.php',
-			#		 headers=self.headers, data=read_file(filepath), cookies=self.cj)
-			r = session.post(url=file_url, headers=self.headers, data=read_file(filepath), cookies=self.cj)
+			r = session.get(url='https://evilzone.org/rauploadmod.php',
+					 headers=self.headers, data=read_file(filepath), cookies=self.cj)#lets pass that cookie around
+
+			#ok, lets stream them file.
+			with open(filepath, 'rb') as f:
+				r = session.post(url=file_url, headers=self.headers, data=f, cookies=self.cj)
 			
-		else:
-			print 'Posting anonymously'
-			r = requests.post(url=file_url, headers=self.headers, data=read_file(filepath))
 		if 'Error' not in r.text:
 			return 'http://upload.evilzone.org?page=download&file='+r.text
 		else:
@@ -126,11 +149,12 @@ class EZuploader():
 		size = get_image_size(imagepath)
 		self.headers['Content-Length'] = size
 		if is_supported_image(imagepath):
-			if self.cj is not None:
-				print self.cj
-				r = requests.post(url=image_url, headers=self.headers, data=read_file(imagepath), cookies=self.cj)
-			else:
-				r = requests.post(url=image_url, headers=self.headers, data=read_file(imagepath))
+			print self.cj
+			if self.cj is not None and self.loggedin:
+				session = requests.session()
+				r = session.get(url='https://evilzone.org/rauploadmod.php',
+					 headers=self.headers, data=read_file(imagepath), cookies=self.cj)#fsck subdomains
+				r = session.post(url=image_url, headers=self.headers, data=read_file(imagepath), cookies=self.cj)
 			if 'Error' not in r.text:
 				return self.url + '/' + get_link(r.text).strip('"')
 			else:
