@@ -1,11 +1,11 @@
 from __future__ import print_function
 import sys, os
 
-from evilupload.evilupload import evilupload
-from evilupload.evilupload import is_supported_image
+import evilupload
+from evilupload import *
 
-def main(argc, argv):
-	if argc < 1:
+def main():
+	if len(sys.argv) <= 1:
 		print('Usage: evilupload file1, file2, .....')
 		exit()
 	
@@ -27,7 +27,7 @@ def main(argc, argv):
 		exit()
 	
 	uploaded_files = dict()
-	for filepath in argv:
+	for filepath in sys.argv[1:]:
 		filenm = os.path.basename(filepath)
 		print ('Uploading: %s...' %filenm)
 		url = upload(filepath)
@@ -40,4 +40,4 @@ def main(argc, argv):
 
 
 if __name__ == "__main__":
-    	sys.exit(main(len(sys.argv[1:]), sys.argv[1:]))
+    	sys.exit(main())
