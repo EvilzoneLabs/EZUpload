@@ -158,28 +158,28 @@ class evilupload():
 		else:
 			raise TypeError("Image format not supported.")
 
-	def delete(self, url):
-		def get_token(url):
-			indx = url.rfind('=')
-			token = url[indx+1:]
-			print (token)
-			if 50 == len(token):
-				return token
-			else:
-				return None
-	
-		token = get_token(url)
-		path = ''
-		if token is not None:
-			if 'yourimages' in url:
-				path = '/index.php?page=yourimages&delete='
-			elif 'yourfiles' in url:
-				path = '/index.php?page=yourfiles&delete='
-
-		image_url = self.url + path + token
-		print image_url
-
-		r = requests.post(url=image_url, headers=self.headers, cookies=self.cj)
-		print(r.text)
+#	def delete(self, url):
+#		def get_token(url):
+#			indx = url.rfind('=')
+#			token = url[indx+1:]
+#			print (token)
+#			if 50 == len(token):
+#				return token
+#			else:
+#				return None
+#	
+#		token = get_token(url)
+#		path = ''
+#		if token is not None:
+#			if 'yourimages' in url:
+#				path = '/index.php?page=yourimages&delete='
+#			elif 'yourfiles' in url:
+#				path = '/index.php?page=yourfiles&delete='
+#
+#		image_url = self.url + path + token
+#		print image_url
+#
+#		r = requests.post(url=image_url, headers=self.headers, cookies=self.cj)
+#		print(r.text)
 #		delete= 'http://upload.evilzone.org/index.php?page=yourimages&delete=S7YDymME33ZidFLEagaQ6YfC7KMCDEUREFMg7piNjlGHXpOFrz'
 #		delete='http://upload.evilzone.org/index.php?page=yourfiles&delete=8wPtrctGEoETO7lIbX38Y3QqyAYXQMqchWxUpBSYLND5FT9RO1'
