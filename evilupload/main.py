@@ -1,16 +1,15 @@
 from __future__ import print_function
 import sys, os
 
-from evilupload.evilupload import evilupload
-from evilupload.evilupload import is_supported_image
+import evilupload
+from evilupload import *
 
-def main(argc, argv):
-	if argc < 1:
-		print('Usage: evilupload files1, file2,.....')
-		print('Dude, provide a file to upload.')
+def main():
+	if len(sys.argv) <= 1:
+		print('Usage: evilupload file1, file2, .....')
 		exit()
+	
 	ezup = evilupload()
-
 	def upload(filename):
 		if is_supported_image(filename):
 			try:
@@ -19,16 +18,19 @@ def main(argc, argv):
 				return ezup.fileupload(filename)
 		else:
 			return ezup.fileupload(filename)
-	print('Logging in...')	
-	ezup.login()
-	print('Logged in.')
+
+	lg = ezup.login()
+	if lg is not None:
+		print('Logged in')
+	else:
+		print('Login failed. Exiting...!')
+		exit()
 	
 	uploaded_files = dict()
-
-	for _file in argv:
-		filenm = os.path.basename(_file)
+	for filepath in sys.argv[1:]:
+		filenm = os.path.basename(filepath)
 		print ('Uploading: %s...' %filenm)
-		url = upload(_file)
+		url = upload(filepath)
 		uploaded_files[filenm] = url
 		
 	print('Done')#All files are done
@@ -38,4 +40,4 @@ def main(argc, argv):
 
 
 if __name__ == "__main__":
-    	sys.exit(main(len(sys.argv[1:]), sys.argv[1:]))
+    	sys.exit(main())
