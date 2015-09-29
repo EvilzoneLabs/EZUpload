@@ -59,7 +59,7 @@ class evilupload():
 		self.referer = 'http://upload.evilzone.org/index.php?page=fileupload'
 		self.headers = {'content-type': self.type, 'User-Agent': self.agent, 'Referer': self.referer}
 	
-	def get_input(prompt):
+	def get_input(self, prompt):
 		"""
 		Function Get input from the user maintaining the python compatibility with earlier and newer versions.
 		:param prompt:
@@ -71,12 +71,18 @@ class evilupload():
 		else:
 			return raw_input(prompt)
 
-	def login(self):
+	def login(self, uname=False, passwd=False):
 		
 		if self.cj is None or not check_cookie(self.cj, 'DarkEvilCookie'):#wonder if this logic is right!
 			login_url = 'https://evilzone.org/login'
-			username = get_input('Username for Evilzone.org: ')
-			password = getpass('Password for Evilzone.org: ')
+			if not uname:
+				username = self.get_input('Username for Evilzone.org: ')
+			else:
+				username = uname
+			if not passwd:
+				password = getpass('Password for Evilzone.org: ')
+			else:
+				password = passwd
 
 			agent = mechanize.Browser()
 			agent.set_handle_robots(False)
@@ -92,14 +98,13 @@ class evilupload():
 			agent.form['passwrd'] = password
 			response = agent.submit()
 	
-			if response.code == requests.codes.ok:
-				if check_cookie(self.cj, 'DarkEvilCookie'): 
-					self.loggedin=True
-#					self.cj.save(ignore_discard=True)
-					return self.cj
-				else:
-					self.loggedin=False
-					return None
+			if response.code == requests.codes.ok and check_cookie(self.cj, 'DarkEvilCookie'):
+				self.loggedin=True
+#				self.cj.save(ignore_discard=True)
+				return self.cj
+			else:
+				self.loggedin=False
+				return None
 		else:
 			return None
 		
@@ -118,7 +123,7 @@ class evilupload():
 			try:
 				#ok, lets stream them big files.
 				with open(filepath, 'rb') as f:
-					r = session.post(url=file_url, headers=self.headers, data=f.read(), cookies=self.cj)
+					r = session.post(url=file_url, headers=self.headers, data=f, cookies=self.cj)
 			except IOError as e:
 				print 'Something went wrong while reading the file: %s' %e
 				return
@@ -126,6 +131,7 @@ class evilupload():
 			if 'Error' not in r.text:
 				return 'http://upload.evilzone.org?page=download&file='+r.text
 			else:
+				print r.text
 				return None
 		else:
 			print 'Login prolly failed.'
@@ -145,13 +151,14 @@ class evilupload():
 				try:
 					#ok, lets stream them big files.
 					with open(imagepath, 'rb') as f:
-						r = session.post(url=image_url, headers=self.headers, data=f.read(), cookies=self.cj)
+						r = session.post(url=image_url, headers=self.headers, data=f, cookies=self.cj)
 				except IOError as e:
 					print 'Something went wrong while reading the file: %s' %e
 					return
 				if 'Error' not in r.text:
 					return self.url + '/' + get_link(r.text).strip('"')
 				else:
+					print ''
 					return None#TODO: parse error and return it
 			else:
 				print 'Login prolly failed.'
